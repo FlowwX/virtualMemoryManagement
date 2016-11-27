@@ -27,18 +27,18 @@
 
 #define SHMNAME "/shm-bsp3"
 
-
+//#define DEBUG_MESSAGES /*debug mode on*/
 
 /* Sizes */
 #define VMEM_VIRTMEMSIZE 1024   /* Process address space / items */
 #define VMEM_PHYSMEMSIZE  128   /* Physical memory / items */
 #define VMEM_PAGESIZE       8   /* Items per page */
-#define VMEM_NPAGES     (VMEM_VIRTMEMSIZE / VMEM_PAGESIZE)      /* Total 
+#define VMEM_NPAGES     (VMEM_VIRTMEMSIZE / VMEM_PAGESIZE)      /* Total 128
                                                                    number 
                                                                    of
                                                                    pages 
                                                                  */
-#define VMEM_NFRAMES (VMEM_PHYSMEMSIZE / VMEM_PAGESIZE) /* Number of
+#define VMEM_NFRAMES (VMEM_PHYSMEMSIZE / VMEM_PAGESIZE) /* Number of  16
                                                            available
                                                            frames */
 /* Page Table */

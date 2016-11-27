@@ -12,6 +12,7 @@ main(void)
     /* Fill memory with pseudo-random data */
     init_data(LENGTH);
 
+
     /* Display unsorted */
     printf("\nUnsorted:\n");
     display_data(LENGTH);
