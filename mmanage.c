@@ -263,7 +263,7 @@ sighandler(int signo){
     if(signal_number==SIGUSR1){
         
         //search free frame / find frame for outsource to pagefile / place page substitution algorithms here
-        algorithm = find_remove_fifo;
+        algorithm = find_remove_lru;//find_remove_fifo;
         int fid = algorithm();
         //load new page into shm data
         fetch_page(vmem->adm.req_pageno);
@@ -271,7 +271,7 @@ sighandler(int signo){
         //update pt
         vmem->pt.entries[vmem->adm.req_pageno].flags = PTF_PRESENT;
         vmem->pt.entries[vmem->adm.req_pageno].frame = fid;
-        vmem->pt.entries[vmem->adm.req_pageno].count += 1;
+        
 
         //do statistic
         vmem->adm.pf_count+=1;
@@ -347,9 +347,10 @@ find_remove_fifo(void){
     }
     //set new pid to framepage
     vmem->pt.framepage[naidx] = vmem->adm.req_pageno;
-    //update pagetable
+    //update pagetable for stored page
     vmem->pt.entries[pid].flags = 0;
     vmem->pt.entries[pid].frame = VOID_IDX;
+    vmem->pt.entries[pid].count = 0;
 
     //increase +1, for next page substitution
     vmem->adm.next_alloc_idx++;
@@ -359,3 +360,35 @@ find_remove_fifo(void){
     
     return naidx;
 }
+
+int 
+find_remove_lru(){
+    //look into frametable wich pages are in
+    //choose that page, wich used least, means with the highest count
+
+    int h_pid, i, h_count, h_frame;
+        h_count=0;
+
+    for(i=0; i<VMEM_NFRAMES; i++){
+        int pid = vmem->pt.framepage[i];
+        if(vmem->pt.entries[pid].count>h_count){
+            h_count = vmem->pt.entries[pid].count;
+            h_pid = pid;
+            h_frame = i;
+        }
+    }
+
+    //if page is dirty write to pagefile
+    if((vmem->pt.entries[h_pid].flags & PTF_DIRTY)==PTF_DIRTY){
+        store_page(h_pid);
+    }
+    //set new pid to framepage
+    vmem->pt.framepage[h_frame] = vmem->adm.req_pageno;
+    //update pagetable for stored page
+    vmem->pt.entries[h_pid].flags = 0;
+    vmem->pt.entries[h_pid].frame = VOID_IDX;
+    vmem->pt.entries[h_pid].count = 0;
+
+    return h_frame;
+}
+

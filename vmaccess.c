@@ -5,6 +5,7 @@ struct vmem_struct *vmem = NULL;
 
 void check_vm(void);
 void write_to_data(int value, int page, int offset);
+void update_framepages(void);
 
 void
 vm_init(void){
@@ -55,8 +56,11 @@ vmem_read(int address){
         }
     }
 
+    update_framepages();
+
     //do statistic
     vmem->adm.g_count+=1;
+
 	return vmem->data[fid*VMEM_PAGESIZE+offset];
 }
 
@@ -86,7 +90,14 @@ vmem_write(int address, int data){
 		sem_wait(&vmem->adm.sema);
 		//page is now in data
 		write_to_data(data, page, offset);
+
 	}
+
+	update_framepages();
+
+	//do statistic
+    vmem->adm.g_count+=1;
+    
 
 }
 
@@ -98,6 +109,7 @@ write_to_data(int value, int page, int offset){
 	vmem->data[fid*VMEM_PAGESIZE+offset] = value;
 	//update pt
 	vmem->pt.entries[page].flags = PTF_DIRTY | PTF_PRESENT;
+	vmem->pt.entries[page].count++;
 }
 
 void
@@ -110,4 +122,14 @@ check_vm(void){
     if(!vmem){
     	vm_init();
     }
+}
+
+void 
+update_framepages(void){
+	int i;
+	for(i=0; i<VMEM_NFRAMES; i++){
+		int pid = vmem->pt.framepage[i];
+		vmem->pt.entries[pid].count++;
+	}
+	vmem->pt.entries[vmem->adm.req_pageno].count = 0;
 }
