@@ -37,7 +37,7 @@ vmem_read(int address){
 	//set requested page to shm
 	vmem->adm.req_pageno = page;
 
-	//look into pt/ check if page is present
+	//look into pt/ check if page is not present
 	if((vmem->pt.entries[page].flags & PTF_PRESENT)==0){
 
 		//async call to mmanage process
@@ -57,6 +57,10 @@ vmem_read(int address){
     }
 
     update_framepages();
+
+  	//update used bit
+  	int flags = vmem->pt.entries[page].flags;
+  	vmem->pt.entries[page].flags = flags | PTF_USED;
 
     //do statistic
     vmem->adm.g_count+=1;
@@ -94,6 +98,10 @@ vmem_write(int address, int data){
 	}
 
 	update_framepages();
+
+	//update used bit
+  	int flags = vmem->pt.entries[page].flags;
+  	vmem->pt.entries[page].flags = flags | PTF_USED;
 
 	//do statistic
     vmem->adm.g_count+=1;

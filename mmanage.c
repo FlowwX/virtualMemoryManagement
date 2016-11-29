@@ -24,6 +24,7 @@ FILE *pagefile = NULL;
 FILE *logfile = NULL;
 int signal_number = 0;          /* Received signal */
 int vmem_algo = VMEM_ALGO_FIFO;
+int repl_page;
 
 int (*algorithm) (void);
 
@@ -36,6 +37,8 @@ struct pf_entry
 int
 main(int argc, char** argv)
 {
+
+
     struct sigaction sigact;
 
     /* Init pagefile */
@@ -165,7 +168,7 @@ vmem_init(){
         flag=0;
         vmem->pt.entries[i].frame = VOID_IDX;
         if(i<VMEM_NFRAMES){
-            flag = PTF_PRESENT;
+            flag = PTF_PRESENT | PTF_USED;
             vmem->pt.framepage[i] = i;
             vmem->pt.entries[i].frame = i;
         }       
@@ -263,13 +266,13 @@ sighandler(int signo){
     if(signal_number==SIGUSR1){
         
         //search free frame / find frame for outsource to pagefile / place page substitution algorithms here
-        algorithm = find_remove_lru;//find_remove_fifo;
+        algorithm = find_remove_clock;//find_remove_lru;//find_remove_fifo;
         int fid = algorithm();
         //load new page into shm data
         fetch_page(vmem->adm.req_pageno);
         
         //update pt
-        vmem->pt.entries[vmem->adm.req_pageno].flags = PTF_PRESENT;
+        vmem->pt.entries[vmem->adm.req_pageno].flags = PTF_PRESENT | PTF_USED;
         vmem->pt.entries[vmem->adm.req_pageno].frame = fid;
         
 
@@ -277,7 +280,18 @@ sighandler(int signo){
         vmem->adm.pf_count+=1;
         //unblock
         sem_post(&vmem->adm.sema);
-        dump_pt();
+       dump_pt();
+
+        //log
+        struct logevent e;
+            e.req_pageno = vmem->adm.req_pageno;
+            e.replaced_page = repl_page;
+            e.alloc_frame = vmem->adm.next_alloc_idx;
+            e.pf_count = vmem->adm.pf_count;
+            e.g_count = vmem->adm.g_count;
+
+            logger(e);
+
     }
 
     if(signal_number==SIGUSR2){
@@ -340,6 +354,7 @@ int
 find_remove_fifo(void){
     int naidx = vmem->adm.next_alloc_idx;
     int pid = vmem->pt.framepage[naidx];
+    repl_page = pid;
    
     //if page is dirty write to pagefile
     if((vmem->pt.entries[pid].flags & PTF_DIRTY)==PTF_DIRTY){
@@ -382,6 +397,8 @@ find_remove_lru(){
     if((vmem->pt.entries[h_pid].flags & PTF_DIRTY)==PTF_DIRTY){
         store_page(h_pid);
     }
+    repl_page = h_pid;
+
     //set new pid to framepage
     vmem->pt.framepage[h_frame] = vmem->adm.req_pageno;
     //update pagetable for stored page
@@ -391,4 +408,47 @@ find_remove_lru(){
 
     return h_frame;
 }
+
+int 
+find_remove_clock(){
+    int naidx = vmem->adm.next_alloc_idx;
+    int pid = vmem->pt.framepage[naidx];
+    repl_page = pid;
+   
+    //if page is dirty write to pagefile
+    if((vmem->pt.entries[pid].flags & PTF_DIRTY)==PTF_DIRTY){
+        store_page(pid);
+    }
+
+    //set new pid to framepage
+    vmem->pt.framepage[naidx] = vmem->adm.req_pageno;
+    //update pagetable for stored page
+    vmem->pt.entries[pid].flags = 0;
+    vmem->pt.entries[pid].frame = VOID_IDX;
+    vmem->pt.entries[pid].count = 0;
+
+    //increase +1, for next page substitution
+    vmem->adm.next_alloc_idx++;
+    if(vmem->adm.next_alloc_idx>=VMEM_NFRAMES){
+        vmem->adm.next_alloc_idx = 0;
+    }
+    int pointer = vmem->adm.next_alloc_idx;
+
+    int i=0;
+    while(pointer<VMEM_NFRAMES){
+        int page = vmem->pt.framepage[pointer];
+        if((vmem->pt.entries[page].flags & PTF_USED)==0){
+            vmem->adm.next_alloc_idx = pointer;
+            break;
+        }
+        else{
+
+            vmem->pt.entries[page].flags = vmem->pt.entries[page].flags ^ PTF_USED;
+
+        }
+        pointer++;
+    }
+    
+    return naidx;
+};
 
