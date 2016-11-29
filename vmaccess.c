@@ -122,7 +122,7 @@ write_to_data(int value, int page, int offset){
 
 void
 vmem_cleanup(){
-	printf("make clean!\n");
+	kill(vmem->adm.mmanage_pid, SIGINT);
 }
 
 void 

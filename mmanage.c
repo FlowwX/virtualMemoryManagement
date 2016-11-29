@@ -24,7 +24,9 @@ FILE *pagefile = NULL;
 FILE *logfile = NULL;
 int signal_number = 0;          /* Received signal */
 int vmem_algo = VMEM_ALGO_FIFO;
+
 int repl_page;
+int fd;
 
 int (*algorithm) (void);
 
@@ -139,7 +141,7 @@ init_pagefile(const char *pfname){
 void
 vmem_init(){
 
-    int fd = shm_open(SHMNAME, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR );
+    fd = shm_open(SHMNAME, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR );
     if (fd == -1){
         perror("Can't create shared memory");
         exit(EXIT_FAILURE);
@@ -296,6 +298,14 @@ sighandler(int signo){
 
     if(signal_number==SIGUSR2){
         PDEBUG("Handle SIGUSR2\n");
+
+
+
+        //clean up
+        close(fd);
+        fclose(pagefile);
+        fclose(logfile);
+
         dump_pt();
     }
 }
@@ -434,7 +444,6 @@ find_remove_clock(){
     }
     int pointer = vmem->adm.next_alloc_idx;
 
-    int i=0;
     while(pointer<VMEM_NFRAMES){
         int page = vmem->pt.framepage[pointer];
         if((vmem->pt.entries[page].flags & PTF_USED)==0){
