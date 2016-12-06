@@ -17,6 +17,7 @@ main(void)
     printf("\nUnsorted:\n");
     display_data(LENGTH);
 
+
     /* Sort */
     printf("\nSorting:\n");
     sort(LENGTH);

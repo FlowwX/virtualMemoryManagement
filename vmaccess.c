@@ -83,11 +83,11 @@ vmem_write(int address, int data){
 
 	//look into pt/ check if page is present
 	if((vmem->pt.entries[page].flags & PTF_PRESENT)==PTF_PRESENT){
-		//printf("page:%d offset:%d value: %d\n", page, offset, data);
+
 		write_to_data(data, page, offset);
 	}
 	else{
-		//printf("(!PRESENT)page:%d offset:%d value: %d\n", page, offset, data);
+
 		//async call to mmanage process
 		kill(vmem->adm.mmanage_pid, SIGUSR1);
 		//block process
@@ -105,8 +105,6 @@ vmem_write(int address, int data){
 
 	//do statistic
     vmem->adm.g_count+=1;
-    
-
 }
 
 void
